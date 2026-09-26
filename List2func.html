@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Шпаргалка · Методы списков Python</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Rubik:wght@400;500;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d0a1e; --panel:#161233; --code:#0b0820;
+  --line:#2c2358; --line2:#3a2f73;
+  --ink:#eceaff; --dim:#9a8fc8;
+  --neon:#6bff8f; --cyan:#4dd7ff; --mag:#ff7ad9; --amber:#ffc857; --red:#ff5d73; --violet:#9d7bff;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Rubik',system-ui,sans-serif;color:var(--ink);background:var(--bg);
+  background-image:radial-gradient(900px 480px at 75% -10%,rgba(80,45,160,.45),transparent);padding:20px 14px 60px}
+.wrap{max-width:1240px;margin:0 auto}
+
+header{text-align:center;margin-bottom:18px}
+h1{font-family:'Unbounded',cursive;font-weight:900;font-size:clamp(22px,4vw,38px);letter-spacing:2px;color:var(--neon);
+  text-shadow:0 0 20px rgba(107,255,143,.5)}
+.sub{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--dim);margin-top:6px}
+.legend{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+.lg{font-family:'JetBrains Mono',monospace;font-size:12px;border-radius:8px;padding:6px 12px;border:1px solid}
+.lg.val{color:var(--cyan);border-color:var(--cyan);background:rgba(77,215,255,.08)}
+.lg.mut{color:var(--amber);border-color:var(--amber);background:rgba(255,200,87,.08)}
+
+section{margin-top:26px}
+.shead{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.shead h2{font-family:'Unbounded',cursive;font-size:clamp(15px,2.4vw,20px);letter-spacing:1px}
+.shead .tag{font-family:'JetBrains Mono',monospace;font-size:11px;border-radius:6px;padding:3px 10px;border:1px solid}
+.shead.val h2{color:var(--cyan)} .shead.val .tag{color:var(--cyan);border-color:var(--cyan)}
+.shead.mut h2{color:var(--amber)} .shead.mut .tag{color:var(--amber);border-color:var(--amber)}
+.sdesc{font-size:13px;color:var(--dim);margin-bottom:12px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px}
+
+.card{background:var(--panel);border:1px solid var(--line2);border-radius:12px;padding:12px 12px 10px;box-shadow:0 10px 24px rgba(0,0,0,.4)}
+.card.val{border-top:3px solid var(--cyan)}
+.card.mut{border-top:3px solid var(--amber)}
+.chead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.chead code{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;color:var(--neon)}
+.badge{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;border-radius:5px;padding:2px 8px;border:1px solid}
+.card.val .badge{color:var(--cyan);border-color:var(--cyan)}
+.card.mut .badge{color:var(--amber);border-color:var(--amber)}
+
+.crow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.side{display:flex;flex-direction:column;gap:4px}
+.cap{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim)}
+.arrow{font-size:22px;color:var(--mag);flex:0 0 auto}
+
+.tiles{display:flex;gap:4px;flex-wrap:wrap}
+.tile{display:flex;flex-direction:column;align-items:center;border:1px solid var(--line2);border-radius:8px;padding:4px 6px;background:var(--code)}
+.tile i{font-style:normal;font-size:20px;line-height:1}
+.tile b{font-size:10px;font-weight:600;color:var(--ink)}
+.tile u{text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim)}
+.tile.new{border-color:var(--neon);box-shadow:0 0 8px rgba(107,255,143,.4)}
+
+.valbox{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:20px;color:var(--amber);
+  border:1px dashed var(--amber);border-radius:10px;padding:8px 16px;background:rgba(255,200,87,.06)}
+.emptylist{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:18px;color:var(--red);
+  border:1px dashed var(--red);border-radius:10px;padding:8px 16px}
+
+/* строка с настоящим списком в квадратных скобках */
+.real{margin-top:9px;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.6;color:var(--ink);
+  background:var(--code);border:1px solid var(--line);border-radius:8px;padding:7px 9px;word-break:break-word}
+.real .res{color:var(--neon);font-weight:700}
+
+.cnote{margin-top:7px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim)}
+.cnote b{color:var(--neon)}
+footer{margin-top:30px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--dim)}
+@media print{body{background:#fff;color:#000}.card{box-shadow:none}.real{background:#f5f5f5}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>ШПАРГАЛКА · СПИСКИ</h1>
+  <div class="sub">zoo = ['заяц', 'лиса', 'медведь', 'волк'] · все методы на одном листе</div>
+  <div class="legend">
+    <span class="lg val">ВОЗВРАЩАЮТ ЗНАЧЕНИЕ → список НЕ меняется</span>
+    <span class="lg mut">ИЗМЕНЯЮТ СПИСОК → возвращают None</span>
+  </div>
+</header>
+
+<section>
+  <div class="shead val"><h2>1 · ВОЗВРАЩАЮТ ЗНАЧЕНИЕ</h2><span class="tag">список остаётся прежним</span></div>
+  <div class="sdesc">Читают список и отдают результат, но сам список не трогают.</div>
+  <div class="grid" id="valGrid"></div>
+</section>
+
+<section>
+  <div class="shead mut"><h2>2 · ИЗМЕНЯЮТ СПИСОК</h2><span class="tag">возвращают None</span></div>
+  <div class="sdesc">Перестраивают сам список. В переменную попадает <b>None</b> (кроме <code>pop</code> — он отдаёт удалённый элемент).</div>
+  <div class="grid" id="mutGrid"></div>
+</section>
+
+<footer>Python · list cheatsheet · 🐰 🦊 🐻 🐺</footer>
+</div>
+
+<script>
+const EMO={'заяц':'🐰','лиса':'🦊','медведь':'🐻','волк':'🐺','ёжик':'🦔','белка':'🐿️'};
+const ZOO=['заяц','лиса','медведь','волк'];
+const B="['заяц', 'лиса', 'медведь', 'волк']";   // «настоящий» список
+
+function tiles(arr,markNew){
+  return '<div class="tiles">'+arr.map((n,i)=>{
+    let cls='tile'; if(markNew&&markNew.includes(n))cls+=' new';
+    return '<span class="'+cls+'"><i>'+EMO[n]+'</i><b>'+n+'</b><u>'+i+'</u></span>';
+  }).join('')+'</div>';
+}
+const left =()=>'<div class="side"><span class="cap">zoo · было</span>'+tiles(ZOO)+'</div>';
+const rightList=(a,nw)=>'<div class="side"><span class="cap">результат</span>'+tiles(a,nw)+'</div>';
+const rightVal=v=>'<div class="side"><span class="cap">результат</span><div class="valbox">'+v+'</div></div>';
+const rightEmpty=()=>'<div class="side"><span class="cap">результат</span><div class="emptylist">[]</div></div>';
+const arrow=()=>'<div class="arrow">➜</div>';
+// строка с настоящим списком; результат после '=' подсвечивается
+const real=s=>'<div class="real">'+s.replace(/(=|⇒)([^=⇒]*)$/,'$1<span class="res">$2</span>')+'</div>';
+
+const VAL=[
+ {code:'len(zoo)', badge:'значение', right:rightVal('4'),
+  real:'len('+B+') = 4', note:'возвращает <b>число</b> элементов'},
+ {code:"zoo.index('медведь')", badge:'значение', right:rightVal('2'),
+  real:B+".index('медведь') = 2", note:'возвращает <b>индекс</b> первого вхождения'},
+ {code:"zoo.count('лиса')", badge:'значение', right:rightVal('1'),
+  real:B+".count('лиса') = 1", note:'возвращает, сколько раз встречается'},
+ {code:'sorted(zoo)', badge:'новый список', right:rightList(['волк','заяц','лиса','медведь']),
+  real:'sorted('+B+") = ['волк', 'заяц', 'лиса', 'медведь']", note:'НОВЫЙ отсортированный список, zoo не тронут'},
+ {code:'zoo[1:3]', badge:'новый список', right:rightList(['лиса','медведь']),
+  real:B+"[1:3] = ['лиса', 'медведь']", note:'срез возвращает НОВЫЙ список'},
+ {code:'zoo.copy()', badge:'новый список', right:rightList(['заяц','лиса','медведь','волк']),
+  real:B+'.copy() = '+B, note:'НОВАЯ копия списка'},
+];
+const MUT=[
+ {code:"zoo.append('ёжик')", badge:'None', right:rightList(['заяц','лиса','медведь','волк','ёжик'],['ёжик']),
+  real:B+".append('ёжик') = ['заяц', 'лиса', 'медведь', 'волк', 'ёжик']", note:'добавляет в конец · вернёт <b>None</b>'},
+ {code:"zoo.insert(1, 'белка')", badge:'None', right:rightList(['заяц','белка','лиса','медведь','волк'],['белка']),
+  real:B+".insert(1, 'белка') = ['заяц', 'белка', 'лиса', 'медведь', 'волк']", note:'вставляет по индексу · вернёт <b>None</b>'},
+ {code:"zoo.extend(['ёжик','белка'])", badge:'None', right:rightList(['заяц','лиса','медведь','волк','ёжик','белка'],['ёжик','белка']),
+  real:B+".extend(['ёжик','белка']) = ['заяц', 'лиса', 'медведь', 'волк', 'ёжик', 'белка']", note:'приклеивает целый список · вернёт <b>None</b>'},
+ {code:"zoo.remove('лиса')", badge:'None', right:rightList(['заяц','медведь','волк']),
+  real:B+".remove('лиса') = ['заяц', 'медведь', 'волк']", note:'удаляет по значению · вернёт <b>None</b>'},
+ {code:'zoo.pop(1)', badge:'→ элемент', right:rightList(['заяц','медведь','волк']),
+  real:B+".pop(1) = ['заяц', 'медведь', 'волк']", note:'вернёт удалённый элемент: <b>‘лиса’</b>'},
+ {code:'zoo.sort()', badge:'None', right:rightList(['волк','заяц','лиса','медведь']),
+  real:B+".sort() = ['волк', 'заяц', 'лиса', 'медведь']", note:'сортирует НА МЕСТЕ · вернёт <b>None</b>'},
+ {code:'zoo.reverse()', badge:'None', right:rightList(['волк','медведь','лиса','заяц']),
+  real:B+".reverse() = ['волк', 'медведь', 'лиса', 'заяц']", note:'разворачивает НА МЕСТЕ · вернёт <b>None</b>'},
+ {code:'zoo.clear()', badge:'None', right:rightEmpty(),
+  real:B+'.clear() = []', note:'очищает список · вернёт <b>None</b>'},
+ {code:'del zoo[0]', badge:'инструкция', right:rightList(['лиса','медведь','волк']),
+  real:'zoo = '+B+'; del zoo[0] ⇒ [\'лиса\', \'медведь\', \'волк\']', note:'это инструкция, не метод · ничего не возвращает'},
+];
+
+function render(list, mount, cls){
+ document.getElementById(mount).innerHTML=list.map(c=>
+  '<div class="card '+cls+'">'+
+   '<div class="chead"><code>'+c.code+'</code><span class="badge">'+c.badge+'</span></div>'+
+   '<div class="crow">'+left()+arrow()+c.right+'</div>'+
+   real(c.real)+
+   '<div class="cnote">'+c.note+'</div>'+
+  '</div>').join('');
+}
+render(VAL,'valGrid','val');
+render(MUT,'mutGrid','mut');
+</script>
+</body>
+</html>

@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PYVILLE — списки и словари Python</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Rubik:wght@400;500;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b1020; --panel:#131c30; --panel2:#0e1526; --code:#0a0f1c;
+  --line:#22304f; --line2:#2c3e63;
+  --ink:#e8eefc; --dim:#8fa3c8;
+  --neon:#3ddc97; --cyan:#38d6f5; --mag:#ff8fb1; --amber:#ffc857; --red:#ff5d73; --violet:#8f7bff;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Rubik',system-ui,sans-serif;color:var(--ink);background:var(--bg);
+  background-image:radial-gradient(900px 480px at 75% -10%,rgba(35,52,105,.5),transparent);overflow-x:hidden}
+
+/* ---------- ВЕРХНЯЯ ПАНЕЛЬ ---------- */
+.topbar{position:sticky;top:0;z-index:80;display:flex;align-items:center;gap:14px;padding:10px 16px;
+  background:rgba(11,16,32,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.logo{font-family:'Unbounded',cursive;font-weight:900;font-size:18px;letter-spacing:2px;color:var(--neon);
+  text-shadow:0 0 14px rgba(61,220,151,.55)}
+.cur{animation:blink 1s steps(1) infinite}
+.lvl{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--cyan);border:1px solid var(--line2);
+  padding:4px 10px;border-radius:6px;background:var(--panel2)}
+.prog{margin-left:auto;display:flex;align-items:center;gap:9px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--dim)}
+.pbar{width:130px;height:6px;background:#1a2440;border-radius:99px;overflow:hidden}
+.pbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--neon),var(--cyan));transition:width .5s}
+
+/* ---------- МАКЕТ ---------- */
+.layout{display:grid;grid-template-columns:360px minmax(0,1fr);gap:18px;max-width:1440px;margin:16px auto;padding:0 14px;align-items:start}
+.side{position:sticky;top:64px;display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 80px);overflow:auto;padding:12px 4px 10px}
+.main{display:flex;flex-direction:column;gap:24px}
+
+/* ---------- РЕЕСТРЫ: СВЕТЛЕЕ И ЗАМЕТНЕЕ ---------- */
+.board{background:
+  repeating-linear-gradient(0deg,rgba(170,200,255,.08) 0 2px,transparent 2px 5px),
+  linear-gradient(180deg,#2a3d68,#203055);
+ border:2px solid var(--line2);border-radius:12px;padding:16px 14px 10px;
+ font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.9;position:relative;word-break:break-word;
+ box-shadow:0 10px 26px rgba(0,0,0,.5);transition:box-shadow .3s,border-color .3s,font-size .3s}
+.boardTag{position:absolute;top:-11px;left:12px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;
+  padding:2px 10px;border-radius:5px;border:1px solid;transition:.2s}
+.tagL{color:var(--cyan);border-color:var(--cyan);background:var(--code)}
+.tagD{color:var(--mag);border-color:var(--mag);background:var(--code)}
+.board .var{font-weight:700}
+.board .varL{color:var(--cyan)} .board .varD{color:var(--mag)}
+.board .pun{color:#8fa3c8}
+.board .key{color:#d3b8ff}
+.board .str{color:#b9c9ea;font-style:italic;border-radius:4px;padding:0 2px;transition:background .3s}
+.board .str.on{color:var(--amber);font-style:normal;font-weight:600}
+.board .str.lit{animation:slotFlash 2.6s}
+.board .str.removing{animation:cellRemove 3.2s forwards;background:rgba(255,93,115,.35)!important;color:#fff!important}
+.board .str.adding{animation:cellAdd 2.8s;background:rgba(61,220,151,.35)!important;color:#fff!important}
+.board .key.removing{animation:cellRemove 3.2s forwards;background:rgba(255,93,115,.35)!important}
+.board .key.adding{animation:cellAdd 2.8s;background:rgba(143,123,255,.35)!important}
+/* подсветка ЦЕЛИ перед действием */
+.str.target,.key.target{background:rgba(255,200,87,.45);color:#fff;font-style:normal;outline:2px solid var(--amber);
+  border-radius:4px;animation:targetPulse .7s ease-in-out infinite}
+.str.ghost,.key.ghost{color:var(--neon);font-style:normal;border:1px dashed var(--neon);background:rgba(61,220,151,.18);
+  border-radius:4px;animation:targetPulse .7s ease-in-out infinite}
+@keyframes targetPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,200,87,0)}50%{box-shadow:0 0 14px 3px rgba(255,200,87,.65)}}
+
+.board.active{font-size:15px;line-height:2;
+ background:
+  repeating-linear-gradient(0deg,rgba(56,214,245,.12) 0 2px,transparent 2px 5px),
+  linear-gradient(180deg,#1668a0,#10517d);
+ border-color:var(--cyan);box-shadow:0 0 0 2px var(--cyan),0 0 30px rgba(56,214,245,.45)}
+.board.active .boardTag{transform:scale(1.12);filter:brightness(1.35)}
+.board.active.mag{border-color:var(--mag);box-shadow:0 0 0 2px var(--mag),0 0 30px rgba(255,143,217,.45);
+ background:
+  repeating-linear-gradient(0deg,rgba(255,143,217,.12) 0 2px,transparent 2px 5px),
+  linear-gradient(180deg,#7c2cb0,#5a1f86)}
+.board.pulse{border-color:var(--cyan);box-shadow:0 0 0 3px var(--cyan),0 0 32px var(--cyan);z-index:5}
+.board.pulse.mag{border-color:var(--mag);box-shadow:0 0 0 3px var(--mag),0 0 32px var(--mag)}
+.board.pulse .boardTag{transform:scale(1.08);filter:brightness(1.3)}
+.boardPulseAnim{animation:boardPulse 3s ease-in-out}
+@keyframes boardPulse{
+  0%,100%{box-shadow:0 10px 26px rgba(0,0,0,.5);border-color:var(--line2)}
+  20%{box-shadow:0 0 0 3px var(--cyan),0 0 36px var(--cyan);border-color:var(--cyan)}
+  40%{box-shadow:0 0 0 4px var(--amber),0 0 44px var(--amber);border-color:var(--amber)}
+  60%{box-shadow:0 0 0 3px var(--neon),0 0 36px var(--neon);border-color:var(--neon)}
+  80%{box-shadow:0 0 0 3px var(--mag),0 0 32px var(--mag);border-color:var(--mag)}
+}
+
+/* ---------- ПИТОН ---------- */
+.snake{display:flex;gap:10px;align-items:stretch;padding:2px 2px 0}
+.snakeBody{font-size:42px;filter:drop-shadow(0 0 10px rgba(61,220,151,.45));animation:sway2 3.5s ease-in-out infinite;flex:0 0 auto;align-self:center}
+.term{flex:1;background:#0c1626;border:1px solid var(--neon);border-radius:10px;box-shadow:0 0 18px rgba(61,220,151,.28);overflow:hidden;transition:border-color .3s,box-shadow .3s}
+.termTxt{padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:13.5px;line-height:1.6;color:var(--neon);min-height:50px;font-weight:600;transition:color .3s}
+.term.err{border-color:var(--red);box-shadow:0 0 18px rgba(255,93,115,.35)}
+.termTxt.err{color:var(--red)}
+
+/* ---------- КАРТОЧКА ЗАДАНИЯ ---------- */
+.mission{background:var(--panel);border:1px solid var(--line2);border-radius:12px;padding:14px 16px;position:sticky;top:64px;z-index:60;
+  box-shadow:0 14px 30px rgba(0,0,0,.5)}
+.mission.done{border-color:var(--neon);box-shadow:0 0 16px rgba(61,220,151,.18)}
+.mHead{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.chip{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:11px;border-radius:5px;padding:3px 9px;border:1px solid}
+.chipL{color:var(--cyan);border-color:var(--cyan)}
+.chipD{color:var(--mag);border-color:var(--mag)}
+.chipOp{color:var(--dim);border-color:var(--line2)}
+.mNum{margin-left:auto;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--dim);font-size:12px}
+.menuBtn{margin-left:8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim);background:transparent;
+  border:1px solid var(--line2);border-radius:5px;padding:3px 9px;cursor:pointer;transition:.15s}
+.menuBtn:hover{color:var(--amber);border-color:var(--amber);background:rgba(255,200,87,.08)}
+.mBarWrap{height:5px;background:#1a2440;border-radius:99px;overflow:hidden;margin-bottom:12px}
+.mBarWrap i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--amber),var(--red));transition:width .6s}
+.mStory{font-size:15.5px;font-weight:500;line-height:1.6;margin-bottom:12px;color:var(--ink)}
+.tok{font-style:normal;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:.92em;padding:1px 7px;border-radius:5px;border:1px solid;white-space:nowrap}
+.tok{color:var(--amber);border-color:rgba(255,200,87,.5);background:rgba(255,200,87,.1)}
+.tok.idx{color:var(--cyan);border-color:rgba(56,214,245,.55);background:rgba(56,214,245,.12)}
+.tok.key{color:var(--mag);border-color:rgba(255,143,217,.55);background:rgba(255,143,217,.12)}
+.tok.cmd{color:var(--neon);border-color:rgba(61,220,151,.55);background:rgba(61,220,151,.12)}
+.mtpl{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:19px;background:var(--code);border:1px solid var(--line2);
+  border-radius:8px;padding:12px 8px;display:flex;flex-wrap:wrap;gap:3px;align-items:center;justify-content:center;color:#cfd9f2;
+  box-shadow:inset 0 0 18px rgba(0,0,0,.5)}
+.mission.done .mtpl{border-color:var(--neon)}
+.tname{font-weight:700;text-shadow:0 0 10px currentColor}
+.tnameL{color:var(--cyan)} .tnameD{color:var(--mag)}
+.mi{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:19px;color:var(--neon);text-align:center;border:none;
+  border-bottom:2px dashed var(--line2);background:transparent;outline:none;padding:0 2px;width:10ch}
+.mi-key{width:12ch}.mi-idx{width:3ch}
+.mi:focus{border-bottom:2px solid var(--neon);background:rgba(61,220,151,.07)}
+.mi[readonly]{border-bottom-color:transparent;color:var(--amber)}
+.mfb{font-family:'JetBrains Mono',monospace;font-size:13px;min-height:22px;margin-top:8px}
+.mfb.err{color:var(--red)}.mfb.ok{color:var(--neon)}
+.mBtns{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap}
+.btn{font-family:'Unbounded',cursive;font-weight:700;font-size:12px;letter-spacing:1px;color:var(--neon);
+  background:transparent;border:1px solid var(--neon);border-radius:8px;padding:9px 18px;cursor:pointer;transition:.15s}
+.btn:hover{background:rgba(61,220,151,.12);box-shadow:0 0 14px rgba(61,220,151,.3)}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.45;cursor:default;box-shadow:none;background:transparent}
+.btn.dim{color:var(--dim);border-color:var(--line2)}
+.btn.dim:hover{background:rgba(143,163,200,.08);box-shadow:none}
+.btn.mag{color:var(--mag);border-color:var(--mag)}
+.btn.mag:hover{background:rgba(255,143,217,.12);box-shadow:0 0 14px rgba(255,143,217,.3)}
+.btn.exit{color:var(--red);border-color:var(--red)}
+.btn.exit:hover{background:rgba(255,93,115,.12);box-shadow:0 0 14px rgba(255,93,115,.3)}
+.stamp{position:absolute;top:10px;right:60px;border:1px solid var(--neon);color:var(--neon);font-family:'JetBrains Mono',monospace;
+  font-weight:700;font-size:11px;padding:2px 9px;border-radius:5px;transform:rotate(4deg);animation:popIn .4s;background:rgba(61,220,151,.08)}
+
+.cheat{display:none;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:12px 14px;font-size:12.5px;line-height:1.6}
+.cheat.open{display:block}
+.cheat h4{font-family:'Unbounded',cursive;font-size:11px;letter-spacing:1px;color:var(--dim);margin:8px 0 5px}
+.cheat code{font-family:'JetBrains Mono',monospace;font-size:11.5px;background:var(--code);border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--neon)}
+.cheat .err{color:var(--red)}
+
+/* ---------- СЦЕНЫ ---------- */
+.scene{position:relative;border:1px solid var(--line);border-radius:14px;overflow:hidden;padding:20px 14px 76px;
+  background:linear-gradient(180deg,#0d1430 0%,#0c1226 55%,#0a0f1e 100%);box-shadow:0 14px 34px rgba(0,0,0,.45)}
+.scene::before{content:'';position:absolute;inset:0;pointer-events:none;opacity:.8;
+  background-image:
+   radial-gradient(1px 1px at 22% 24%,rgba(255,255,255,.75),transparent),
+   radial-gradient(1px 1px at 58% 38%,rgba(255,255,255,.45),transparent),
+   radial-gradient(1.5px 1.5px at 82% 16%,rgba(255,255,255,.8),transparent),
+   radial-gradient(1px 1px at 40% 12%,rgba(255,255,255,.4),transparent),
+   radial-gradient(1px 1px at 70% 30%,rgba(255,255,255,.5),transparent);
+  background-size:340px 220px}
+.moon{position:absolute;top:16px;right:26px;width:42px;height:42px;border-radius:50%;background:#e8eefc;opacity:.9;
+  box-shadow:0 0 26px rgba(232,238,252,.5),inset -9px -7px 0 rgba(0,0,0,.14)}
+.scene::after{content:'';position:absolute;left:0;right:0;bottom:0;height:58px;background:#0a0f1c;border-top:1px solid var(--line2);
+  background-image:repeating-linear-gradient(90deg,rgba(56,214,245,.5) 0 18px,transparent 18px 40px);
+  background-size:100% 2px;background-repeat:no-repeat}
+.sceneHead{position:relative;z-index:2;text-align:center}
+.sector{display:inline-flex;gap:9px;align-items:center;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;
+  color:var(--ink);border:1px solid var(--line2);background:var(--panel2);padding:7px 16px;border-radius:8px}
+.sector i{width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+#sceneD .sector i{background:var(--mag);box-shadow:0 0 8px var(--mag)}
+.lenChip{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim);margin-left:8px}
+.sceneSub{text-align:center;position:relative;z-index:2;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--dim);margin-top:8px}
+.sceneSub b{color:var(--amber);font-weight:600}
+.plots{display:flex;flex-wrap:wrap;gap:20px 16px;justify-content:center;align-items:flex-end;position:relative;z-index:2;margin:26px 0 4px}
+
+/* ---------- ЗДАНИЕ ---------- */
+.plot{width:170px;position:relative;padding-top:36px}
+.bld{position:relative;width:150px;height:140px;margin:0 auto;background:#141d33;border:1px solid var(--line2);
+  border-top:4px solid var(--ac);border-radius:6px 6px 0 0;
+  box-shadow:0 10px 24px rgba(0,0,0,.5),0 0 18px var(--acg)}
+.ant{position:absolute;top:-16px;right:18px;width:2px;height:16px;background:var(--line2)}
+.ant::after{content:'';position:absolute;top:-5px;left:-2px;width:6px;height:6px;border-radius:50%;background:var(--red);
+  box-shadow:0 0 8px var(--red);animation:blink 2s infinite}
+.win{position:absolute;top:18px;left:14px;width:52px;height:46px;background:#0a1122;border:1px solid var(--ac);border-radius:4px;
+  overflow:hidden;box-shadow:0 0 12px var(--acg),inset 0 0 10px rgba(0,0,0,.7)}
+.peek{position:absolute;left:50%;bottom:-12px;transform:translateX(-50%);font-size:36px;animation:peek 7s ease-in-out infinite}
+.plot.open .peek{opacity:0;transition:opacity .3s}
+.win::after{content:'';position:absolute;inset:0;opacity:.5;
+  background:linear-gradient(var(--ac),var(--ac)) center/100% 2px no-repeat,linear-gradient(var(--ac),var(--ac)) center/2px 100% no-repeat}
+.doorway{position:absolute;right:14px;bottom:0;width:52px;height:78px;background:#070c16;border:1px solid var(--line2);
+  border-bottom:none;border-radius:6px 6px 0 0;perspective:240px}
+.sign{position:absolute;top:-24px;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:10.5px;
+  font-weight:700;letter-spacing:.5px;color:var(--ac);border:1px solid var(--ac);background:#0a1122;padding:1px 7px;border-radius:4px;
+  white-space:nowrap;z-index:6;box-shadow:0 0 10px var(--acg)}
+.door{position:absolute;inset:0;border-radius:5px 5px 0 0;z-index:3;transform-origin:left center;
+  background:linear-gradient(180deg,#1b2742,#141d33);border:1px solid var(--ac);
+  display:flex;align-items:center;justify-content:center;transition:transform .9s cubic-bezier(.55,-.15,.35,1.15)}
+.plot.open .door{transform:rotateY(-105deg)}
+.plate{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px;color:var(--ac);border:1px solid var(--ac);
+  border-radius:4px;padding:1px 7px;background:#0a1122}
+.resident{position:absolute;bottom:0;right:-4px;z-index:5;text-align:center}
+.rbody{display:block;font-size:38px;line-height:1;animation:bob 2s ease-in-out infinite}
+.rtag{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:10px;
+  color:var(--ac);border:1px solid var(--ac);background:#0a1122;padding:0 6px;border-radius:4px;white-space:nowrap}
+.plot.open .resident.spawn{animation:walkout 1s .45s cubic-bezier(.34,1.35,.55,1) both}
+.resident .case{display:none;position:absolute;left:-26px;bottom:0;font-size:22px}
+.resident.withCase .case{display:block}
+.resident.go{animation:goOut 1.05s ease-in forwards}
+.resident.come{animation:comeIn 1.15s cubic-bezier(.3,1.3,.5,1) forwards}
+.resident.excite .rbody{animation:jump .5s ease 2}
+.plot.pulse .bld{animation:hintPulse .7s ease-in-out 2}
+.bld.construct{animation:buildPop .95s cubic-bezier(.3,1.5,.5,1)}
+.bld.demolish{animation:collapse .95s ease-in forwards;transform-origin:bottom center}
+.lotEmpty{width:150px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.lotSign{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim);border:1px dashed var(--line2);border-radius:6px;
+  padding:14px 8px;text-align:center;background:rgba(255,255,255,.02);width:100%}
+.rubble{position:absolute;z-index:5;font-size:24px;text-align:center;pointer-events:none;animation:rubbleFade 1.5s forwards}
+.keyErr{position:absolute;left:50%;top:32%;transform:translate(-50%,-50%) rotate(-2deg);z-index:9;background:#160b10;border:1px solid var(--red);
+  color:var(--red);font-family:'JetBrains Mono',monospace;font-weight:700;font-size:clamp(13px,2.2vw,19px);padding:10px 18px;border-radius:8px;
+  box-shadow:0 0 26px rgba(255,93,115,.4);animation:popIn .45s cubic-bezier(.3,1.6,.5,1)}
+.parcel{position:absolute;left:50%;bottom:64px;transform:translateX(-50%);font-size:36px;z-index:6;animation:parcelBounce .55s ease-in-out infinite alternate}
+.fade{opacity:0!important;transition:opacity .6s}
+.cf{position:fixed;z-index:200;pointer-events:none;font-size:16px;will-change:transform}
+.mute{position:fixed;right:14px;bottom:14px;z-index:90;width:44px;height:44px;border-radius:8px;font-size:18px;cursor:pointer;
+  background:var(--panel);border:1px solid var(--line2);color:var(--dim)}
+
+/* ---------- ОВЕРЛЕИ ---------- */
+.overlay{position:fixed;inset:0;background:rgba(5,8,16,.8);backdrop-filter:blur(4px);display:none;place-items:center;z-index:120;padding:18px}
+.overlay.show{display:grid}
+.menuCard{background:var(--panel);border:1px solid var(--line2);border-radius:16px;padding:34px 36px;max-width:760px;text-align:center;
+  box-shadow:0 30px 60px rgba(0,0,0,.6);animation:popIn .5s cubic-bezier(.3,1.4,.5,1)}
+.mTitle{font-family:'Unbounded',cursive;font-weight:900;font-size:clamp(30px,5vw,52px);letter-spacing:4px;color:var(--neon);
+  text-shadow:0 0 24px rgba(61,220,151,.5)}
+.mTitle .ver{font-size:.35em;color:var(--dim);vertical-align:super;letter-spacing:1px}
+.mSub{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--dim);margin:8px 0 26px}
+.lvlCards{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;align-items:stretch}
+.lvlCard{flex:1 1 260px;max-width:320px;background:var(--panel2);border:1px solid var(--line2);border-radius:12px;padding:20px 18px;
+  text-align:left;transition:.2s;display:flex;flex-direction:column}
+.lvlCard:hover{border-color:var(--cyan);box-shadow:0 0 18px rgba(56,214,245,.2)}
+.lvlCard:last-child:hover{border-color:var(--mag);box-shadow:0 0 18px rgba(255,143,217,.2)}
+.lvlCard .lcNum{font-family:'Unbounded',cursive;font-weight:900;font-size:26px;color:var(--cyan)}
+.lvlCard:last-child .lcNum{color:var(--mag)}
+.lvlCard h3{font-family:'Unbounded',cursive;font-size:14px;letter-spacing:2px;margin:6px 0 8px}
+.lvlCard p{font-size:12.5px;color:var(--dim);line-height:1.5;margin-bottom:14px}
+.lvlCard .btn{margin-top:auto;align-self:flex-start}
+.mHint{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--dim);margin-top:22px;line-height:1.6}
+.winCard{background:var(--panel);border:1px solid var(--line2);border-radius:16px;padding:28px 30px;max-width:720px;text-align:center;
+  box-shadow:0 30px 60px rgba(0,0,0,.6);animation:popIn .5s cubic-bezier(.3,1.6,.5,1)}
+.winCard h2{font-family:'Unbounded',cursive;font-size:clamp(20px,3.6vw,30px);letter-spacing:2px;color:var(--neon);margin:8px 0;
+  text-shadow:0 0 18px rgba(61,220,151,.4)}
+.opsTable{margin:16px 0;border-radius:10px;overflow:hidden;border:1px solid var(--line2);text-align:left}
+.opsRow{display:grid;grid-template-columns:1fr 1.15fr 1.15fr}
+.opsRow>div{padding:8px 10px;background:var(--code);color:var(--ink);font-size:12px}
+.opsRow>div+div{border-left:1px solid var(--line)}
+.opsRow+.opsRow>div{border-top:1px solid var(--line)}
+.opsRow.head>div{background:#101a2e;font-family:'Unbounded',cursive;color:var(--dim);font-weight:700;font-size:11px;letter-spacing:1px}
+.opsRow code{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--neon);font-weight:600;display:block}
+.opsRow .opName{font-weight:700;color:var(--amber);font-size:11.5px}
+.opsRow small{color:var(--dim);display:block;font-size:10px;line-height:1.3}
+.winBtns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+#winStars{font-size:30px;margin:8px 0 16px;letter-spacing:6px}
+.confirmCard{background:var(--panel);border:1px solid var(--amber);border-radius:16px;padding:26px 28px;max-width:440px;text-align:center;
+  box-shadow:0 0 28px rgba(255,200,87,.25);animation:popIn .4s cubic-bezier(.3,1.4,.5,1)}
+.confirmCard h2{font-family:'Unbounded',cursive;font-size:18px;letter-spacing:1px;color:var(--amber);margin-bottom:12px}
+.confirmCard p{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--dim);margin-bottom:18px}
+footer{border-top:1px solid var(--line);color:var(--dim);text-align:center;padding:22px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;margin-top:30px}
+
+/* ---------- АНИМАЦИИ ---------- */
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+@keyframes sway2{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes jump{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+@keyframes peek{0%,62%{transform:translate(-50%,0)}70%{transform:translate(-50%,-8px) rotate(-5deg)}78%{transform:translate(-50%,-2px)}86%,100%{transform:translate(-50%,0)}}
+@keyframes walkout{0%{opacity:0;transform:translateX(-26px) scale(.4)}60%{opacity:1}100%{opacity:1;transform:none}}
+@keyframes goOut{0%{transform:translateX(0);opacity:1}100%{transform:translateX(170px);opacity:0}}
+@keyframes comeIn{0%{transform:translateX(-150px);opacity:0}55%{opacity:1}100%{transform:translateX(0);opacity:1}}
+@keyframes buildPop{0%{transform:translateY(44px) scale(.1);opacity:0}60%{transform:translateY(-8px) scale(1.06);opacity:1}100%{transform:none;opacity:1}}
+@keyframes collapse{0%{transform:none}12%{transform:translateX(-7px) rotate(-1deg)}24%{transform:translateX(7px) rotate(1deg)}36%{transform:translateX(-5px)}48%{transform:none}100%{transform:translateY(34px) scaleY(.12);opacity:.3}}
+@keyframes hintPulse{0%,100%{box-shadow:0 10px 24px rgba(0,0,0,.5)}50%{box-shadow:0 0 26px var(--acg),0 0 10px var(--ac)}}
+@keyframes slotFlash{0%{background:rgba(255,200,87,.3)}100%{background:transparent}}
+@keyframes cellRemove{0%{background:rgba(255,93,115,.3);color:#fff}40%{background:rgba(255,93,115,.55);transform:scale(1.12)}100%{background:transparent;transform:scale(.5);opacity:0}}
+@keyframes cellAdd{0%{background:rgba(61,220,151,.55);transform:scale(1.25)}100%{background:transparent;transform:scale(1)}}
+@keyframes popIn{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes rubbleFade{0%{opacity:1}70%{opacity:1}100%{opacity:0;transform:translateY(8px)}}
+@keyframes parcelBounce{from{transform:translate(-50%,0)}to{transform:translate(-50%,-12px)}}
+@keyframes headShake{0%,100%{transform:rotate(0)}25%{transform:rotate(-12deg)}75%{transform:rotate(12deg)}}
+.shake{animation:shakeX .5s}
+@keyframes shakeX{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+
+@media (max-width:1080px){
+  .layout{grid-template-columns:1fr}
+  .side{display:contents}
+  .mission{position:sticky;top:56px;z-index:65;box-shadow:0 14px 30px rgba(0,0,0,.6)}
+  .board{margin:0 14px}
+  .snake{margin:0 14px}
+}
+@media (max-width:640px){
+  .termTxt{font-size:12px}
+  .mtpl{font-size:16px}.mi{font-size:16px}
+  .opsRow code{font-size:9.5px}.opsRow>div{padding:6px}
+}
+@media (prefers-reduced-motion:reduce){
+  .peek,.snakeBody,.rbody,.parcel,.ant::after,.cur{animation:none!important}
+  .plot.open .resident.spawn{opacity:1;animation:none}
+  .board.boardPulseAnim{animation:none}
+  .str.target,.key.target,.str.ghost,.key.ghost{animation:none}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="logo">PYVILLE<span class="cur">▮</span></div>
+  <div class="lvl" id="lvlChip">УРОВЕНЬ 1 // ЧТЕНИЕ ДАННЫХ</div>
+  <div class="prog"><span id="progTxt">0/10</span><div class="pbar"><i id="progFill"></i></div></div>
+</header>
+
+<div class="layout">
+  <aside class="side">
+    <div class="board" id="boardListWrap"><span class="boardTag tagL">list · лес</span><div id="boardList"></div></div>
+    <div class="board" id="boardDictWrap"><span class="boardTag tagD">dict · звери</span><div id="boardDict"></div></div>
+
+    <div class="snake" id="snake">
+      <div class="snakeBody">🐍</div>
+      <div class="term" id="term">
+        <div class="termTxt" id="termTxt">…ожидание команды…</div>
+      </div>
+    </div>
+
+    <button class="btn dim" id="cheatToggle" style="align-self:flex-start">[?] СПРАВКА</button>
+    <div class="cheat" id="cheat">
+      <h4>// ЧТЕНИЕ (уровень 1)</h4>
+      <div><code>лес[0]</code> — первый элемент, счёт с нуля</div>
+      <div><code>звери['Клюев']</code> — значение по ключу, ключ в кавычках</div>
+      <div><code class="err">лес[8]</code> → IndexError · <code class="err">звери['Нет']</code> → KeyError</div>
+      <h4>// ОПЕРАЦИИ (уровень 2)</h4>
+      <div><code>лес[1] = 'волк'</code> · <code>звери['k'] = v</code> — заменить значение</div>
+      <div><code>лес.append(x)</code> — добавить в конец</div>
+      <div><code>звери['новый'] = v</code> — новый ключ = новый элемент</div>
+      <div><code>лес.pop(i)</code> · <code>лес.remove(x)</code> · <code>del звери[k]</code> — удалить</div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="mission" id="missionCard"></div>
+
+    <section class="scene" id="sceneL">
+      <div class="moon"></div>
+      <div class="sceneHead">
+        <span class="sector"><i></i>СЕКТОР A · СПИСОК лес</span>
+        <span class="lenChip" id="lenL">len = 5</span>
+      </div>
+      <div class="sceneSub">доступ по <b>индексу</b> · индексация с 0</div>
+      <div class="plots" id="plotsL"></div>
+    </section>
+    <section class="scene" id="sceneD">
+      <div class="moon"></div>
+      <div class="sceneHead">
+        <span class="sector"><i></i>СЕКТОР B · СЛОВАРЬ звери</span>
+        <span class="lenChip" id="lenD">len = 5</span>
+      </div>
+      <div class="sceneSub">доступ по <b>ключу</b> · ключ — строка в кавычках</div>
+      <div class="plots" id="plotsD"></div>
+    </section>
+  </div>
+</div>
+
+<footer>PYVILLE v2.0 // list = упорядочено по индексам · dict = по ключам · [ ] — общий синтаксис доступа</footer>
+
+<button class="mute" id="muteBtn" title="звук">🔊</button>
+
+<div class="overlay show" id="menu">
+  <div class="menuCard">
+    <div class="mTitle">PYVILLE<span class="ver">v2.0</span></div>
+    <div class="mSub">// тренажёр списков и словарей Python</div>
+    <div class="lvlCards">
+      <div class="lvlCard">
+        <div class="lcNum">01</div>
+        <h3>ЧТЕНИЕ ДАННЫХ</h3>
+        <p>Список: получить элемент по индексу. Словарь: получить значение по ключу. 10 запросов.</p>
+        <button class="btn" id="startL1">НАЧАТЬ ▸</button>
+      </div>
+      <div class="lvlCard">
+        <div class="lcNum">02</div>
+        <h3>ОПЕРАЦИИ</h3>
+        <p>Замена значений, append, pop, remove, del и разбор KeyError. 10 операций.</p>
+        <button class="btn mag" id="startL2">НАЧАТЬ ▸</button>
+      </div>
+    </div>
+    <div class="mHint">уровни независимы — можно начать с любого<br>впиши аргумент в шаблон команды → [ ВЫПОЛНИТЬ ] · при ошибке Питон подскажет красным</div>
+  </div>
+</div>
+
+<div class="overlay" id="clearOv">
+  <div class="winCard">
+    <div style="font-size:52px">✅</div>
+    <h2>УРОВЕНЬ 1 ПРОЙДЕН</h2>
+    <p style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--dim)" id="clearStats"></p>
+    <p style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--dim);margin:10px 0 18px">
+      Дальше: уровень 2 — операции над структурами данных.</p>
+    <div class="winBtns"><button class="btn mag" id="toL2">УРОВЕНЬ 2 ▸</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="winCard">
+    <div style="font-size:52px">🏆</div>
+    <h2>СИСТЕМА ОСВОЕНА</h2>
+    <div class="opsTable">
+      <div class="opsRow head"><div>ОПЕРАЦИЯ</div><div>LIST · лес</div><div>DICT · звери</div></div>
+      <div class="opsRow"><div class="opName">Прочитать</div><div><code>лес[2]</code><small>по индексу, с 0</small></div><div><code>звери['Пушистов']</code><small>по ключу, в кавычках</small></div></div>
+      <div class="opsRow"><div class="opName">Заменить</div><div><code>лес[1] = 'волк'</code></div><div><code>звери['Шариков'] = 'попугай'</code></div></div>
+      <div class="opsRow"><div class="opName">Добавить</div><div><code>лес.append('лиса')</code><small>в конец</small></div><div><code>звери['Панцирев'] = 'черепаха'</code><small>новый ключ</small></div></div>
+      <div class="opsRow"><div class="opName">Удалить</div><div><code>лес.pop(1)</code> · <code>лес.remove(x)</code></div><div><code>del звери['Колючкин']</code></div></div>
+      <div class="opsRow"><div class="opName">Ошибки</div><div><code>лес[99]</code><small>IndexError</small></div><div><code>звери['Клюев']</code><small>KeyError</small></div></div>
+    </div>
+    <p id="winStats" style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--dim)"></p>
+    <div id="winStars"></div>
+    <div class="winBtns">
+      <button class="btn dim" id="toL1" style="display:none">УРОВЕНЬ 1 ▸</button>
+      <button class="btn dim" onclick="backToMenu()">⌂ МЕНЮ</button>
+      <button class="btn" onclick="location.reload()">↻ ЗАНОВО</button>
+      <button class="btn exit" id="exitBtn">⏻ ВЫХОД</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="confirmOv">
+  <div class="confirmCard">
+    <h2>⚠ ВЕРНУТЬСЯ В МЕНЮ?</h2>
+    <p>Прогресс текущего уровня будет потерян.</p>
+    <div class="winBtns">
+      <button class="btn exit" id="confirmYes">ДА, В МЕНЮ</button>
+      <button class="btn dim" id="confirmNo">ОСТАТЬСЯ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= ДАННЫЕ ================= */
+let uidC=0;
+const mk=(e,n,p)=>({uid:'u'+(uidC++),e,n,p});
+const mkd=(k,e,n,p)=>({uid:'u'+(uidC++),k,e,n,p});
+const ACC=[['#38d6f5','rgba(56,214,245,.30)'],['#3ddc97','rgba(61,220,151,.30)'],['#ffc857','rgba(255,200,87,.30)'],
+ ['#ff7a6b','rgba(255,122,107,.30)'],['#8f7bff','rgba(143,123,255,.30)'],['#ff8fb1','rgba(255,143,217,.30)'],
+ ['#7ee08a','rgba(126,224,138,.30)'],['#63b3ff','rgba(99,179,255,.30)']];
+
+const LIST1=[
+ {e:'🐰',n:'заяц'},{e:'🦊',n:'лиса'},{e:'🦔',n:'ёжик'},
+ {e:'🐻',n:'медведь'},{e:'🐿️',n:'белка'}];
+const DICT1=[
+ {k:'Ушастиков',e:'🐱',n:'кот'},{k:'Шариков',e:'🐶',n:'пёс'},
+ {k:'Клюев',e:'🦜',n:'попугай'},{k:'Хомкин',e:'🐹',n:'хомяк'},
+ {k:'Пузырьков',e:'🐠',n:'рыбка'}];
+
+let level=1, missions=[], mi=0, mistakes=0, running=false, done1=false;
+let les=[], zv=[];
+const openSet=new Set();
+const S={neg:false,quote:false,case:false};
+
+const plotsEl={l:document.getElementById('plotsL'),d:document.getElementById('plotsD')};
+const sceneEl={l:document.getElementById('sceneL'),d:document.getElementById('sceneD')};
+const boardEl={l:document.getElementById('boardListWrap'),d:document.getElementById('boardDictWrap')};
+
+function dataOf(st){return level===1?(st==='l'?LIST1:DICT1):(st==='l'?les:zv);}
+
+/* ================= РЕЕСТРЫ ================= */
+function renderBoards(o={}){
+ const {fL=[],fD=[],removeL=null,removeD=null,addL=null,addD=null,targetSide=null,targetIdx=null,ghostSide=null}=o;
+ const j='<span class="pun">, </span>';
+ const L=dataOf('l').map((h,i)=>{
+  const on=level===1?openSet.has('l'+i):true;
+  const cls='str'+(on?' on':'')+(fL.includes(i)?' lit':'')+(removeL===i?' removing':'')+(addL===i?' adding':'')+
+   ((targetSide==='l'&&targetIdx===i)?' target':'');
+  return '<span class="'+cls+'">'+(on?'‘'+h.n+' '+h.e+'’':'‘?’')+'</span>';});
+ if(ghostSide==='l')L.push('<span class="str ghost">…</span>');
+ document.getElementById('boardList').innerHTML=
+  '<span class="var varL">лес</span> <span class="pun">=</span> <span class="pun">[</span>'+L.join(j)+'<span class="pun">]</span>';
+
+ const D=dataOf('d').map((h,i)=>{
+  const on=level===1?openSet.has('d'+i):true;
+  const t=(targetSide==='d'&&targetIdx===i);
+  const kcls='key'+(removeD===i?' removing':'')+(addD===i?' adding':'')+(t?' target':'');
+  const vcls='str'+(on?' on':'')+(fD.includes(i)?' lit':'')+(removeD===i?' removing':'')+(addD===i?' adding':'')+(t?' target':'');
+  return '<span class="'+kcls+'">‘'+h.k+'’</span><span class="pun">:</span> <span class="'+vcls+'">'+(on?'‘'+h.n+' '+h.e+'’':'‘?’')+'</span>';});
+ if(ghostSide==='d')D.push('<span class="key ghost">…</span><span class="pun">:</span> <span class="str ghost">…</span>');
+ document.getElementById('boardDict').innerHTML=
+  '<span class="var varD">звери</span> <span class="pun">=</span> <span class="pun">{</span> '+D.join(j)+' <span class="pun">}</span>';
+ document.getElementById('lenL').textContent='len = '+dataOf('l').length;
+ document.getElementById('lenD').textContent='len = '+dataOf('d').length;
+}
+
+function updateBoardsVisibility(st){
+ boardEl.l.style.display=(st==='l')?'':'none';
+ boardEl.d.style.display=(st==='d')?'':'none';
+ boardEl.l.classList.toggle('active',st==='l');
+ boardEl.d.classList.toggle('active',st==='d');
+ boardEl.d.classList.toggle('mag',st==='d');
+}
+function showBothBoards(){
+ boardEl.l.style.display='';boardEl.d.style.display='';
+ boardEl.l.classList.remove('active');boardEl.d.classList.remove('active','mag');
+}
+function updateScenesVisibility(st){
+ sceneEl.l.style.display=(st==='l')?'':'none';
+ sceneEl.d.style.display=(st==='d')?'':'none';
+}
+function showBothScenes(){sceneEl.l.style.display='';sceneEl.d.style.display='';}
+
+/* ================= СЦЕНЫ ================= */
+function renderStreet(st){
+ const cont=plotsEl[st],data=dataOf(st);
+ cont.innerHTML='';
+ data.forEach((h,i)=>{
+  const p=document.createElement('div');
+  p.className='plot';p.dataset.uid=h.uid||(st+i);
+  const ac=ACC[i%8];
+  p.style.setProperty('--ac',ac[0]);p.style.setProperty('--acg',ac[1]);
+  const doorArea=st==='l'
+   ? '<div class="door"><span class="plate">'+i+'</span></div>'
+   : '<span class="sign">'+h.k+'</span><div class="door"></div>';
+  const resident=(level===2)
+   ? '<div class="resident"><span class="case">🧳</span><span class="rbody">'+h.e+'</span><span class="rtag">'+h.n+'</span></div>'
+   : '';
+  p.innerHTML='<div class="bld">'+(i%3===0?'<div class="ant"></div>':'')+
+   '<div class="win"><div class="peek" style="animation-delay:'+(-(i*1.3)).toFixed(1)+'s">'+h.e+'</div></div>'+
+   '<div class="doorway">'+doorArea+'</div></div>'+resident;
+  cont.appendChild(p);
+ });
+ if(level===2){
+  const lot=document.createElement('div');lot.className='lotEmpty';
+  lot.innerHTML='<div class="lotSign">// СВОБОДНЫЙ<br>УЧАСТОК</div>';
+  cont.appendChild(lot);
+ }
+}
+function flip(st,opts={}){
+ const cont=plotsEl[st],old={};
+ cont.querySelectorAll('.plot').forEach(p=>old[p.dataset.uid]=p.getBoundingClientRect());
+ renderStreet(st);
+ cont.querySelectorAll('.plot').forEach(p=>{
+  const r=p.getBoundingClientRect(),o=old[p.dataset.uid];
+  if(o){const dx=o.left-r.left;
+   if(Math.abs(dx)>4)p.animate([{transform:'translateX('+dx+'px)'},{transform:'translateX(0)'}],{duration:1300,easing:'cubic-bezier(.25,1,.45,1)'});}
+  else if(opts.buildUid===p.dataset.uid){p.querySelector('.bld').classList.add('construct');burst(p.querySelector('.bld'));sndBuild();}
+ });
+}
+function plotByUid(uid){return document.querySelector('.plot[data-uid="'+uid+'"]');}
+function pulsePlot(st,i){
+ const p=level===1?document.querySelector('.plot[data-uid="'+st+i+'"]'):(dataOf(st)[i]&&plotByUid(dataOf(st)[i].uid));
+ if(!p)return;p.classList.add('pulse');setTimeout(()=>p.classList.remove('pulse'),1500);
+}
+
+/* ================= РЕЕСТР: подсветка → пауза → действие ================= */
+function pulseBoard(side){
+ const b=boardEl[side];
+ b.classList.add('pulse','boardPulseAnim');
+ if(side==='d')b.classList.add('mag');
+ setTimeout(()=>b.classList.remove('pulse','mag','boardPulseAnim'),3100);
+}
+function boardEvent({side,type,idx,mutate,cb}){
+ if(type==='none'){cb&&cb();return;}
+ setTimeout(()=>{                                   // после улицы
+  pulseBoard(side);
+  say(side==='l'?'▸ Реестр «лес» обновляется…':'▸ Реестр «звери» обновляется…');
+  setTimeout(()=>{                                  // 1) ПОДСВЕТКА цели
+   if(type==='add')renderBoards({ghostSide:side});
+   else renderBoards({targetSide:side,targetIdx:idx});
+   setTimeout(()=>{                                 // 2) пауза, затем ДЕЙСТВИЕ
+    if(mutate)mutate();
+    if(type==='remove'){sndRemove();
+     renderBoards({removeL:side==='l'?idx:null,removeD:side==='d'?idx:null});setTimeout(cb,3200);}
+    else if(type==='add'){sndAdd();
+     renderBoards({addL:side==='l'?idx:null,addD:side==='d'?idx:null,fL:side==='l'?[idx]:[],fD:side==='d'?[idx]:[]});setTimeout(cb,3000);}
+    else{sndReplace();
+     renderBoards({fL:side==='l'?[idx]:[],fD:side==='d'?[idx]:[]});setTimeout(cb,2800);}
+   },1600);
+  },800);
+ },1500);
+}
+
+/* ================= ЗВУК ================= */
+let ctx=null,muted=false;
+function ac(){if(!ctx){try{ctx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}return ctx;}
+document.addEventListener('pointerdown',()=>ac(),{once:true});
+function tone(f,d,type,vol,delay){if(muted)return;const c=ac();if(!c)return;
+ const o=c.createOscillator(),g=c.createGain(),t=c.currentTime+(delay||0);
+ o.type=type||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);
+ g.gain.setValueAtTime(vol||.14,t);g.gain.exponentialRampToValueAtTime(.001,t+d);o.start(t);o.stop(t+d);}
+function sndOk(){tone(660,.09,'square',.08);tone(990,.14,'square',.08,.1);}
+function sndNo(){tone(160,.22,'sawtooth',.09);}
+function sndBuild(){tone(392,.08,'triangle',.13);tone(523,.08,'triangle',.13,.1);tone(659,.14,'triangle',.13,.2);}
+function sndBoom(){if(muted)return;const c=ac();if(!c)return;
+ const o=c.createOscillator(),g=c.createGain(),t=c.currentTime;
+ o.type='sawtooth';o.frequency.setValueAtTime(170,t);o.frequency.exponentialRampToValueAtTime(50,t+.5);
+ o.connect(g);g.connect(c.destination);g.gain.setValueAtTime(.18,t);g.gain.exponentialRampToValueAtTime(.001,t+.55);o.start(t);o.stop(t+.55);}
+function sndWin(){[523,659,784,1047].forEach((f,i)=>tone(f,.2,'triangle',.16,i*.14));}
+function sndRemove(){tone(600,.12,'sawtooth',.16);tone(300,.16,'sawtooth',.16,.14);tone(150,.3,'sawtooth',.18,.3);}
+function sndAdd(){tone(400,.1,'square',.15);tone(600,.1,'square',.15,.11);tone(800,.12,'square',.16,.22);tone(1200,.28,'square',.16,.34);}
+function sndReplace(){tone(700,.1,'square',.15);tone(950,.2,'square',.16,.12);}
+document.getElementById('muteBtn').addEventListener('click',e=>{muted=!muted;e.currentTarget.textContent=muted?'🔇':'';});
+
+function burst(el){
+ if(!el)return;
+ const r=el.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/3;
+ const chars=['✦','✧','◆','●'];
+ const cols=['#3ddc97','#38d6f5','#ffc857','#8f7bff'];
+ for(let k=0;k<12;k++){
+  const p=document.createElement('span');p.className='cf';p.textContent=chars[k%4];
+  p.style.left=x+'px';p.style.top=y+'px';p.style.color=cols[k%4];
+  document.body.appendChild(p);
+  const a=Math.random()*Math.PI*2,dist=46+Math.random()*80;
+  p.animate([{transform:'translate(0,0)',opacity:1},
+   {transform:'translate('+Math.cos(a)*dist+'px,'+(Math.sin(a)*dist-42)+'px) rotate('+(Math.random()*200-100)+'deg)',opacity:0}],
+   {duration:700+Math.random()*450,easing:'cubic-bezier(.2,.7,.3,1)'}).onfinish=()=>p.remove();
+ }
+}
+
+const term=document.getElementById('term'),termTxt=document.getElementById('termTxt'),snakeEl=document.getElementById('snake');
+function say(msg,mode){
+ termTxt.textContent=msg;
+ const err=(mode==='err');
+ termTxt.classList.toggle('err',err);
+ term.classList.toggle('err',err);
+}
+function snakeNo(){snakeEl.classList.add('no');setTimeout(()=>snakeEl.classList.remove('no'),600);}
+
+/* ================= АНИМАЦИИ ДОМИКОВ ================= */
+function readAnim1(st,i,d,cb){
+ const p=document.querySelector('.plot[data-uid="'+st+i+'"]');
+ if(!p){cb&&cb();return;}
+ p.classList.add('open');
+ const res=document.createElement('div');res.className='resident spawn';
+ res.innerHTML='<span class="rbody">'+d.e+'</span><span class="rtag">'+d.n+'</span>';
+ p.appendChild(res);
+ burst(p.querySelector('.bld'));sndOk();
+ setTimeout(()=>{openSet.add(st+i);renderBoards({fL:st==='l'?[i]:[],fD:st==='d'?[i]:[]});cb&&cb();},1700);
+}
+function readAnim2(st,uid,d,cb){
+ const p=plotByUid(uid);if(!p){cb&&cb();return;}
+ p.classList.add('open');
+ const res=p.querySelector('.resident');if(res)res.classList.add('excite');
+ sndOk();
+ setTimeout(()=>{p.classList.remove('open');res&&res.classList.remove('excite');cb&&cb();},1800);
+}
+function moveOut(uid,cb){
+ const p=plotByUid(uid);if(!p){cb&&cb();return;}
+ const peek=p.querySelector('.peek');if(peek)peek.style.opacity='0';
+ p.querySelector('.resident').classList.add('withCase','go');setTimeout(cb,1050);
+}
+function swapResident(uid,nh,cb){
+ const p=plotByUid(uid);if(!p){cb&&cb();return;}
+ const res=p.querySelector('.resident');
+ const peek=p.querySelector('.peek');
+ if(peek)peek.textContent=nh.e;
+ res.querySelector('.rbody').textContent=nh.e;res.querySelector('.rtag').textContent=nh.n;
+ res.classList.remove('go');res.classList.add('come','withCase');
+ setTimeout(()=>{res.classList.remove('come','withCase');cb&&cb();},1250);
+}
+function demolish(st,uid,cb,opts={}){
+ const plot=plotByUid(uid);if(!plot){cb&&cb();return;}
+ const scene=sceneEl[st],pr=plot.getBoundingClientRect(),sr=scene.getBoundingClientRect();
+ const b=plot.querySelector('.bld');
+ burst(b);b.classList.add('demolish');sndBoom();
+ setTimeout(()=>{
+  const rub=document.createElement('div');rub.className='rubble';rub.textContent='▨  ✦';
+  rub.style.left=(pr.left-sr.left)+'px';rub.style.width=pr.width+'px';rub.style.bottom='50px';rub.style.color='#5c7099';
+  scene.appendChild(rub);
+  if(opts.keepData){plot.remove();}
+  else{if(st==='l')les=les.filter(x=>x.uid!==uid);else zv=zv.filter(x=>x.uid!==uid);flip(st);}
+  setTimeout(()=>rub.remove(),1500);
+  setTimeout(cb,950);
+ },1000);
+}
+function keyErrScene(st,key,cb){
+ const scene=sceneEl[st];
+ const par=document.createElement('div');par.className='parcel';par.textContent='📦';scene.appendChild(par);
+ setTimeout(()=>{
+  const s=document.createElement('div');s.className='keyErr';s.textContent='KeyError: ‘'+key+'’';
+  scene.appendChild(s);sndNo();
+  setTimeout(()=>{s.classList.add('fade');par.classList.add('fade');
+   setTimeout(()=>{s.remove();par.remove();cb();},700);},2600);
+ },900);
+}
+
+/* ================= ЗАДАНИЯ ================= */
+const IN_IDX='<input class="mi mi-idx" maxlength="2" inputmode="numeric" placeholder="#" autocomplete="off">',
+      IN_VAL='<input class="mi" maxlength="10" placeholder="str" autocomplete="off" spellcheck="false">',
+      IN_KEY='<input class="mi mi-key" maxlength="12" placeholder="ключ" autocomplete="off" spellcheck="false">';
+const clean=v=>v.trim().replace(/^['"«»]+|['"«»]+$/g,'').toLowerCase();
+
+function buildLevel1(){
+ const ms=[];
+ const fl=['Запрос мэрии: кто в квартире №<b class="tok idx">0</b>? Выведи элемент. Счёт с нуля!',
+  'Вторая квартира — это индекс <b class="tok idx">1</b>. Кто внутри?',
+  'Запрос: выведи элемент с индексом <b class="tok idx">2</b>.',
+  'Квартира №<b class="tok idx">3</b>. Проверь жильца по индексу.',
+  'Финал сектора A: индекс <b class="tok idx">4</b> — последний домик.'];
+ LIST1.forEach((d,i)=>ms.push({st:'l',op:'лес[i] → значение',story:fl[i],
+  tpl:'<span class="tname tnameL">лес</span><span class="pun">[</span> '+IN_IDX+' <span class="pun">]</span>',
+  check:v=>{const n=v[0].trim();
+   if(!/^-?\d+$/.test(n))return{ok:false,msg:'TypeError: индекс списка — целое число, не строка.'};
+   const x=parseInt(n,10);
+   if(x<0){if(!S.neg){S.neg=true;say('Отрицательный индекс: лес[-1] — последний элемент. Сейчас работаем с 0–4.','err');}
+    return{ok:false,msg:'Сейчас используем индексы 0–4.'};}
+   if(x===i)return{ok:true};
+   if(x<=4)return{ok:false,msg:'Это другой индекс. Нужен '+i+'.',pulse:['l',x]};
+   return{ok:false,msg:'IndexError: индекс '+x+' вне диапазона 0–4.'};},
+  run:cb=>readAnim1('l',i,d,cb),
+  after:'лес['+i+'] → '+d.n+(i===0?'. Индексация с НУЛЯ.':'.')}));
+ const fd=['Ключ <b class="tok key">«Ушастиков»</b>. Выведи значение.',
+  'Ключ <b class="tok key">«Шариков»</b>. Кто в реестре?',
+  'Ключ <b class="tok key">«Клюев»</b>. Выведи значение.',
+  'Ключ <b class="tok key">«Хомкин»</b>. Проверь.',
+  'Финал сектора B: ключ <b class="tok key">«Пузырьков»</b>.'];
+ DICT1.forEach((d,i)=>ms.push({st:'d',op:'звери[k] → значение',story:fd[i],
+  tpl:'<span class="tname tnameD">звери</span><span class="pun">[</span> ‘ '+IN_KEY+' ’ <span class="pun">]</span>',
+  check:v=>{const k=clean(v[0]);
+   if(/^\d+$/.test(k))return{ok:false,msg:'Словарь читается по ключу, не по номеру.'};
+   const f=DICT1.findIndex(x=>x.k.toLowerCase()===k);
+   if(f===-1)return{ok:false,msg:'KeyError: ключа «'+k+'» нет.'};
+   if(f!==i)return{ok:false,msg:'Другой домик. Нужен ключ «'+d.k+'».',pulse:['d',f]};
+   if(DICT1[i].k.toLowerCase()===k&&DICT1[i].k!==v[0].trim()&&!S.case){S.case=true;
+    setTimeout(()=>say('Зачёт. Но Python различает регистр: «Ушастиков» ≠ «ушастиков».'),1500);}
+   return{ok:true};},
+  run:cb=>readAnim1('d',i,d,cb),
+  after:'звери[‘'+d.k+'’] → '+d.n+'. Ключ — строка в кавычках.'}));
+ return ms;
+}
+
+function buildLevel2(){
+ les=[mk('🐰','заяц',0),mk('🦔','ёжик',1),mk('🐿️','белка',5),mk('🐻','медведь',3)];
+ zv=[mkd('Ушастиков','🐰','заяц',2),mkd('Колючкин','🦔','ёжик',6),mkd('Пушистов','🐱','кот',4),mkd('Шариков','🐶','пёс',7)];
+ return [
+ {st:'l',op:'лес[i] — чтение',story:'Проверка связи: выведи жильца квартиры №<b class="tok idx">2</b>.',
+  tpl:'<span class="tname tnameL">лес</span>[ '+IN_IDX+' ]',
+  check:v=>v[0].trim()==='2'?{ok:true}:{ok:false,msg:'Нужна квартира №2.'},
+  run:cb=>readAnim2('l',les[2].uid,les[2],cb),
+  after:'Чтение не меняет список.'},
+ {st:'l',op:'лес[i] = x — замена',story:'Миграция: ёжик из кв.<b class="tok idx">1</b> уехал, въезжает <b class="tok">волк</b>. Команда: <b class="tok cmd">лес[1] = \'волк\'</b>.',
+  tpl:'<span class="tname tnameL">лес</span>[ '+IN_IDX+' ] = ‘ '+IN_VAL+' ’',
+  check:v=>{if(v[0].trim()!=='1')return{ok:false,msg:'Перезаселяем квартиру №1.'};
+   if(clean(v[1])!=='волк')return{ok:false,msg:'Новый жилец — волк.'};return{ok:true};},
+  run(cb){const i=1,uid=les[i].uid;
+   moveOut(uid,()=>{
+    boardEvent({side:'l',type:'replace',idx:i,
+     mutate:()=>{les[i]=mk('🐺','волк',les[i].p);les[i].uid=uid;swapResident(uid,les[i]);},
+     cb});
+   });},
+  after:'Индекс тот же — значение новое.'},
+ {st:'l',op:'лес.append(x)',story:'Новостройка: добавь дом в конец через <b class="tok cmd">append</b>. Новосёл — <b class="tok">лиса</b>.',
+  tpl:'<span class="tname tnameL">лес</span>.append( ‘ '+IN_VAL+' ’ )',
+  check:v=>clean(v[0])==='лиса'?{ok:true}:{ok:false,msg:'Новосёл — лиса.'},
+  run(cb){const h=mk('🦊','лиса',les.length%8);const newIdx=les.length;
+   boardEvent({side:'l',type:'add',idx:newIdx,
+    mutate:()=>{les.push(h);flip('l',{buildUid:h.uid});},
+    cb});},
+  after:'append добавляет строго в конец.'},
+ {st:'l',op:'лес.pop(i)',story:'Демонтаж по индексу: снеси дом №<b class="tok idx">1</b> командой <b class="tok cmd">pop</b>. Индексы пересчитаются.',
+  tpl:'<span class="tname tnameL">лес</span>.pop( '+IN_IDX+' )',
+  check:v=>v[0].trim()==='1'?{ok:true}:{ok:false,msg:'Сносим индекс 1.'},
+  run(cb){const idx=1,uid=les[idx].uid;
+   moveOut(uid,()=>demolish('l',uid,()=>{
+    boardEvent({side:'l',type:'remove',idx:idx,cb:()=>{
+     les=les.filter(x=>x.uid!==uid);flip('l');renderBoards({fL:[idx]});cb();
+    }});
+   },{keepData:true}));},
+  after:'pop удалил элемент — список сдвинулся.'},
+ {st:'l',op:'лес.remove(x)',story:'Демонтаж по значению: <b class="tok">лиса</b> уезжает. Удали через <b class="tok cmd">remove</b>.',
+  tpl:'<span class="tname tnameL">лес</span>.remove( ‘ '+IN_VAL+' ’ )',
+  check:v=>clean(v[0])==='лиса'?{ok:true}:{ok:false,msg:'Удаляем значение «лиса».'},
+  run(cb){const i=les.findIndex(h=>h.n==='лиса'),uid=les[i].uid;
+   const p=plotByUid(uid);if(p)p.classList.add('pulse');
+   say('Поиск значения… найдено: индекс '+i);
+   setTimeout(()=>moveOut(uid,()=>demolish('l',uid,()=>{
+    boardEvent({side:'l',type:'remove',idx:i,cb:()=>{
+     les=les.filter(x=>x.uid!==uid);flip('l');renderBoards({fL:[i]});cb();
+    }});
+   },{keepData:true})),1200);},
+  after:'remove ищет по значению, не по индексу.'},
+ {st:'d',op:'звери[k] — чтение',story:'Запрос по ключу <b class="tok key">«Пушистов»</b>. Кто записан?',
+  tpl:'<span class="tname tnameD">звери</span>[ ‘ '+IN_KEY+' ’ ]',
+  check:v=>clean(v[0])==='пушистов'?{ok:true}:{ok:false,msg:'Ключ: Пушистов.'},
+  run:cb=>readAnim2('d',zv.find(h=>h.k==='Пушистов').uid,zv.find(h=>h.k==='Пушистов'),cb),
+  after:'Чтение по ключу не меняет словарь.'},
+ {st:'d',op:'звери[k] = v — замена',story:'Замена: по ключу <b class="tok key">«Шариков»</b> теперь значится <b class="tok">попугай</b>.',
+  tpl:'<span class="tname tnameD">звери</span>[ ‘ '+IN_KEY+' ’ ] = ‘ '+IN_VAL+' ’',
+  check:v=>{if(clean(v[0])!=='шариков')return{ok:false,msg:'Ключ: Шариков.'};
+   if(clean(v[1])!=='попугай')return{ok:false,msg:'Новый жилец: попугай.'};return{ok:true};},
+  run(cb){const i=zv.findIndex(h=>h.k==='Шариков'),uid=zv[i].uid;
+   moveOut(uid,()=>{
+    boardEvent({side:'d',type:'replace',idx:i,
+     mutate:()=>{zv[i]=mkd('Шариков','🦜','попугай',zv[i].p);zv[i].uid=uid;swapResident(uid,zv[i]);},
+     cb});
+   });},
+  after:'Ключ прежний — значение заменено.'},
+ {st:'d',op:'звери[k] = v — новый ключ',story:'Новый ключ <b class="tok key">«Панцирев»</b>: засели <b class="tok">черепаху</b>.',
+  tpl:'<span class="tname tnameD">звери</span>[ ‘ '+IN_KEY+' ’ ] = ‘ '+IN_VAL+' ’',
+  check:v=>{if(clean(v[0])!=='панцирев')return{ok:false,msg:'Ключ: Панцирев.'};
+   if(clean(v[1])!=='черепаха')return{ok:false,msg:'Значение: черепаха.'};return{ok:true};},
+  run(cb){const h=mkd('Панцирев','🐢','черепаха',(zv.length+2)%8);const newIdx=zv.length;
+   boardEvent({side:'d',type:'add',idx:newIdx,
+    mutate:()=>{zv.push(h);flip('d',{buildUid:h.uid});},
+    cb});},
+  after:'Запись по НОВОМУ ключу = добавление пары.'},
+ {st:'d',op:'del звери[k]',story:'Удали пару с ключом <b class="tok key">«Колючкин»</b> через <b class="tok cmd">del</b>.',
+  tpl:'del <span class="tname tnameD">звери</span>[ ‘ '+IN_KEY+' ’ ]',
+  check:v=>clean(v[0])==='колючкин'?{ok:true}:{ok:false,msg:'Ключ: Колючкин.'},
+  run(cb){const i=zv.findIndex(h=>h.k==='Колючкин'),uid=zv[i].uid;
+   moveOut(uid,()=>demolish('d',uid,()=>{
+    boardEvent({side:'d',type:'remove',idx:i,cb:()=>{
+     zv=zv.filter(x=>x.uid!==uid);flip('d');renderBoards({fD:[i]});cb();
+    }});
+   },{keepData:true}));},
+  after:'del удалил ключ навсегда.'},
+ {st:'d',op:'тест ошибки',story:'Тест: прочитай несуществующий ключ <b class="tok key">«Клюев»</b> и посмотри реакцию системы.',
+  tpl:'<span class="tname tnameD">звери</span>[ ‘ '+IN_KEY+' ’ ]',
+  check:v=>clean(v[0])==='клюев'?{ok:true}:{ok:false,msg:'Тестовый ключ: Клюев.'},
+  run:cb=>keyErrScene('d','Клюев',cb),
+  after:'Чтение несуществующего ключа → KeyError. Запись по новому ключу → добавление.'}
+ ];
+}
+
+/* ================= ДВИЖОК ================= */
+const card=document.getElementById('missionCard');
+function setProg(n){document.getElementById('progTxt').textContent=n+'/'+missions.length;
+ document.getElementById('progFill').style.width=(n/missions.length*100)+'%';}
+
+function startLevel(n){
+ level=n;mi=0;running=false;openSet.clear();
+ S.neg=S.quote=S.case=false;
+ missions=n===1?buildLevel1():buildLevel2();
+ document.getElementById('lvlChip').textContent=n===1?'УРОВЕНЬ 1 // ЧТЕНИЕ ДАННЫХ':'УРОВЕНЬ 2 // ОПЕРАЦИИ';
+ renderStreet('l');renderStreet('d');renderBoards();
+ updateBoardsVisibility(missions[0].st);
+ updateScenesVisibility(missions[0].st);
+ showMission();
+ ['menu','clearOv','overlay','confirmOv'].forEach(id=>document.getElementById(id).classList.remove('show'));
+ say(n===1?'Уровень 1. Читаем данные: список — по индексу, словарь — по ключу.':
+  'Уровень 2. Операции: замена, добавление, удаление.');
+}
+
+function showMission(){
+ const m=missions[mi];
+ updateBoardsVisibility(m.st);
+ updateScenesVisibility(m.st);
+ card.classList.remove('done');
+ card.innerHTML=
+  '<div class="mHead"><span class="chip '+(m.st==='l'?'chipL':'chipD')+'">'+(m.st==='l'?'LIST':'DICT')+'</span>'+
+  '<span class="chip chipOp">'+m.op+'</span><span class="mNum">'+(mi+1)+'/'+missions.length+'</span>'+
+  '<button class="menuBtn" id="missionMenuBtn" title="Вернуться в меню">✕ МЕНЮ</button></div>'+
+  '<div class="mBarWrap"><i id="mBar"></i></div>'+
+  '<div class="mStory">'+m.story+'</div>'+
+  '<div class="mtpl">'+m.tpl+'</div>'+
+  '<div class="mfb" id="mfb"></div>'+
+  '<div class="mBtns"><button class="btn" id="runBtn">▸ ВЫПОЛНИТЬ</button></div>';
+ document.getElementById('mBar').style.width=(mi/missions.length*100)+'%';
+ setProg(mi);
+ card.querySelectorAll('.mi').forEach(inp=>inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();onBtn();}}));
+ document.getElementById('runBtn').addEventListener('click',onBtn);
+ document.getElementById('missionMenuBtn').addEventListener('click',requestMenu);
+}
+function fb(t,c){const f=document.getElementById('mfb');if(f){f.className='mfb '+c;f.textContent=t;}}
+function onBtn(){
+ if(running)return;
+ const btn=document.getElementById('runBtn');
+ if(!btn||btn.disabled)return;
+ if(card.classList.contains('done'))next();else tryRun();
+}
+function tryRun(){
+ const m=missions[mi],btn=document.getElementById('runBtn');
+ const vals=[...card.querySelectorAll('.mi')].map(i=>i.value);
+ if(vals.some(v=>!v.trim())){fb('','');say('Пустой аргумент. Заполни поле в шаблоне команды.','err');return;}
+ const r=m.check(vals);
+ if(!r.ok){
+  mistakes++;sndNo();snakeNo();
+  card.classList.remove('shake');void card.offsetWidth;card.classList.add('shake');
+  fb('','');say(r.msg,'err');
+  if(r.pulse)pulsePlot(r.pulse[0],r.pulse[1]);
+  return;
+ }
+ running=true;
+ card.querySelectorAll('.mi').forEach(i=>i.readOnly=true);
+ btn.disabled=true;btn.textContent='… ВЫПОЛНЯЮ';
+ fb('','');
+ sceneEl[m.st].scrollIntoView({behavior:'smooth',block:'center'});
+ setTimeout(()=>m.run(()=>{
+  running=false;
+  card.classList.add('done');
+  if(!card.querySelector('.stamp')){
+   const s=document.createElement('div');s.className='stamp';s.textContent='OK ✔';card.appendChild(s);}
+  fb('','');say(m.after);
+  document.getElementById('mBar').style.width=((mi+1)/missions.length*100)+'%';
+  setProg(mi+1);
+  btn.disabled=false;
+  btn.textContent=(mi+1<missions.length)?'ДАЛЬШЕ ▸':'■ ИТОГ';
+ }),500);
+}
+function next(){
+ const prev=missions[mi].st;
+ mi++;
+ if(mi>=missions.length){level===1?clearLevel():finale();return;}
+ showMission();
+ if(prev==='l'&&missions[mi].st==='d'){
+  setTimeout(()=>sceneEl.d.scrollIntoView({behavior:'smooth',block:'center'}),150);
+  say(level===1?'Сектор A готов. Переход в сектор B — словарь.':'Операции со списком готовы. Теперь словарь.');
+ }
+}
+function clearLevel(){
+ done1=true;
+ document.getElementById('clearStats').textContent='запросов: 10 · ошибок: '+mistakes;
+ document.getElementById('clearOv').classList.add('show');
+ sndWin();
+}
+function finale(){
+ sndWin();
+ document.getElementById('winStats').textContent='операций: 10 · всего ошибок: '+mistakes;
+ const stars=mistakes<=2?3:(mistakes<=6?2:1);
+ document.getElementById('winStars').textContent='★'.repeat(stars)+'☆'.repeat(3-stars);
+ document.getElementById('toL1').style.display=done1?'none':'inline-block';
+ document.getElementById('overlay').classList.add('show');
+ let n=0;const iv=setInterval(()=>{
+  burst({getBoundingClientRect:()=>({left:Math.random()*innerWidth*.85,top:Math.random()*innerHeight*.5,width:80,height:40})});
+  if(++n>6)clearInterval(iv);},380);
+}
+
+function backToMenu(){
+ running=false;
+ ['menu','clearOv','overlay','confirmOv'].forEach(id=>document.getElementById(id).classList.remove('show'));
+ document.getElementById('menu').classList.add('show');
+ missions=buildLevel1();renderStreet('l');renderStreet('d');renderBoards();
+ showBothBoards();showBothScenes();setProg(0);
+ say('…ожидание команды…');
+}
+function requestMenu(){document.getElementById('confirmOv').classList.add('show');}
+
+document.getElementById('startL1').addEventListener('click',()=>startLevel(1));
+document.getElementById('startL2').addEventListener('click',()=>startLevel(2));
+document.getElementById('toL2').addEventListener('click',()=>startLevel(2));
+document.getElementById('toL1').addEventListener('click',()=>startLevel(1));
+document.getElementById('cheatToggle').addEventListener('click',()=>document.getElementById('cheat').classList.toggle('open'));
+document.getElementById('confirmYes').addEventListener('click',backToMenu);
+document.getElementById('confirmNo').addEventListener('click',()=>document.getElementById('confirmOv').classList.remove('show'));
+document.getElementById('exitBtn').addEventListener('click',()=>{
+ window.close();
+ document.getElementById('overlay').innerHTML=
+  '<div class="winCard"><div style="font-size:52px">🐍</div><h2>СЕАНС ЗАВЕРШЁН</h2>'+
+  '<p style="font-family:\'JetBrains Mono\',monospace;font-size:13px;color:var(--dim)">Процесс остановлен. Окно можно закрыть.</p></div>';
+});
+
+missions=buildLevel1();
+renderStreet('l');renderStreet('d');renderBoards();showBothBoards();showBothScenes();setProg(0);
+</script>
+</body>
+</html>
